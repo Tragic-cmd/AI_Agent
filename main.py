@@ -1,10 +1,11 @@
 import os
 import argparse
+from generate_content import generate_content
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-from prompts import system_prompt
-from call_function import available_functions
+
+
 
 def main():
     parser = argparse.ArgumentParser(description="Chatbot")
@@ -15,7 +16,6 @@ def main():
 
     prompt = args.prompt
     load_dotenv()
-
     messages = [types.Content(role="user", parts=[types.Part(text=prompt)])]
 
     # API
@@ -23,36 +23,9 @@ def main():
     if api_key is None:
         raise RuntimeError("API key not found.")
     
-    # Gemini
+    # Call Gemini
     client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model='gemini-2.5-flash', 
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], system_instruction=system_prompt
-        ),
-    )
-
-    # Response
-    if response.usage_metadata is None:
-        raise RuntimeError("Failed API request.")
-    prompt_token_count = response.usage_metadata.prompt_token_count
-    candidates_token_count = response.usage_metadata.candidates_token_count
-    if args.verbose:
-        print(f"User prompt: {prompt}")
-        print(f"Prompt tokens: {prompt_token_count}")
-        print(f"Response tokens: {candidates_token_count}")
-        print(f"Response: {response.text}")
-    
-    if not response.function_calls:
-        # no tool calls → just print text and stop
-        print(f"Response: {response.text}")
-        return
-
-    for function_call_part in response.function_calls:
-        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+    generate_content(client, messages, args.verbose)
 
 if __name__ == "__main__":
     main()
-
-
